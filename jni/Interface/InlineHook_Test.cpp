@@ -35,6 +35,60 @@ extern "C"
 typedef std::vector<INLINE_HOOK_INFO *> InlineHookInfoPVec;
 static InlineHookInfoPVec gs_vecInlineHookInfo;
 
+// Reads the whole contents of a .txt file into a std::string.
+// Returns an empty string (and logs) if the file cannot be opened.
+std::string ReadTextFile(const char *pszPath)
+{
+  std::string strContent;
+
+  if (pszPath == NULL)
+  {
+    return strContent;
+  }
+
+  std::ifstream ifs(pszPath, std::ios::in | std::ios::binary);
+  if (!ifs.is_open())
+  {
+    LOGI("ReadTextFile: open fail. path=%s errno=%d", pszPath, errno);
+    return strContent;
+  }
+
+  std::stringstream ss;
+  ss << ifs.rdbuf();
+  strContent = ss.str();
+  ifs.close();
+
+  LOGI("ReadTextFile: path=%s size=%zu", pszPath, strContent.size());
+  return strContent;
+}
+
+// Writes a string to a .txt file. When bAppend is true the text is appended,
+// otherwise the file is truncated/created. Returns true on success.
+bool WriteTextFile(const char *pszPath, const char *pszText, bool bAppend)
+{
+  if (pszPath == NULL || pszText == NULL)
+  {
+    return false;
+  }
+
+  std::ios::openmode mode = std::ios::out | std::ios::binary;
+  mode |= bAppend ? std::ios::app : std::ios::trunc;
+
+  std::ofstream ofs(pszPath, mode);
+  if (!ofs.is_open())
+  {
+    LOGI("WriteTextFile: open fail. path=%s errno=%d", pszPath, errno);
+    return false;
+  }
+
+  ofs << pszText;
+  bool bRet = ofs.good();
+  ofs.close();
+
+  LOGI("WriteTextFile: path=%s append=%d ok=%d", pszPath, (int)bAppend, (int)bRet);
+  return bRet;
+}
+
 bool InlineHook(void *pHookAddr, void (*onCallBack)(struct user_pt_regs *))
 {
   bool bRet = false;
@@ -145,6 +199,20 @@ void *my_hook_thread(void *arg)
   uint64_t endAddr;
   char library_name[] = "libil2cpp.so";
   unsigned libhooked = 0;
+
+  // Self-test: verify ReadTextFile / WriteTextFile work on-device.
+  const char *pszTestPath = "/data/local/tmp/gauto_fileio_test.txt";
+  if (WriteTextFile(pszTestPath, "gauto file io test line 1\n", false) &&
+      WriteTextFile(pszTestPath, "appended line 2\n", true))
+  {
+    std::string strReadBack = ReadTextFile(pszTestPath);
+    LOGI("fileio self-test readback (%zu bytes):\n%s",
+         strReadBack.size(), strReadBack.c_str());
+  }
+  else
+  {
+    LOGI("fileio self-test: write failed, path=%s", pszTestPath);
+  }
 
   while (true)
   {
