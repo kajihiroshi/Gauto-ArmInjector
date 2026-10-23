@@ -36,6 +36,39 @@ extern "C"
 typedef std::vector<INLINE_HOOK_INFO *> InlineHookInfoPVec;
 static InlineHookInfoPVec gs_vecInlineHookInfo;
 
+void find_address(char *soname, uint64_t &startAddr, uint64_t &endAddr);
+
+// Describes a loaded module/memory region found in /proc/self/maps.
+struct ModuleInfo
+{
+  char name[64];
+  uint64_t startAddr;
+  uint64_t endAddr;
+};
+
+// Fills a ModuleInfo for the given .so name and logs its address range/size.
+// Returns true if the module was found.
+bool GetModuleInfo(const char *soname, ModuleInfo *pInfo)
+{
+  if (soname == NULL || pInfo == NULL)
+  {
+    return false;
+  }
+
+  strncpy(pInfo->name, soname, sizeof(pInfo->name) - 1);
+  pInfo->name[sizeof(pInfo->name) - 1] = '\0';
+  pInfo->startAddr = 0;
+  pInfo->endAddr = 0;
+
+  find_address(pInfo->name, pInfo->startAddr, pInfo->endAddr);
+
+  bool bFound = (pInfo->startAddr != 0);
+  LOGI("GetModuleInfo: name=%s start=0x%lx end=0x%lx size=%lu found=%d",
+       pInfo->name, (unsigned long)pInfo->startAddr, (unsigned long)pInfo->endAddr,
+       (unsigned long)(pInfo->endAddr - pInfo->startAddr), (int)bFound);
+  return bFound;
+}
+
 // Calculates the sum of all integers from 1 to 100 (inclusive).
 int SumOneToHundred()
 {
@@ -267,6 +300,10 @@ void *my_hook_thread(void *arg)
 
   // Self-test: sum of 1..100 (expect 5050).
   LOGI("sum 1..100 = %d", SumOneToHundred());
+
+  // Self-test: use the ModuleInfo struct.
+  ModuleInfo stInfo;
+  GetModuleInfo("libc.so", &stInfo);
 
   // Self-test: dump 100+ bytes as hex, 16 values per line, via existing utils.
   {
