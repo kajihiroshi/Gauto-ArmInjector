@@ -7,6 +7,7 @@
 #include <sys/un.h>
 #include <sstream>
 #include <strings.h>
+#include <time.h>
 
 #ifndef PAGE_SIZE
 #define PAGE_SIZE 4096
@@ -34,6 +35,59 @@ extern "C"
 
 typedef std::vector<INLINE_HOOK_INFO *> InlineHookInfoPVec;
 static InlineHookInfoPVec gs_vecInlineHookInfo;
+
+// Writes a byte buffer to a .txt file as hex, 16 values per line, with the
+// current date-time stamped at the start of every line. Returns true on success.
+bool WriteValuesWithTimestamp(const char *pszPath, const uint8_t *pBuf, size_t len, bool bAppend)
+{
+  if (pszPath == NULL || pBuf == NULL)
+  {
+    return false;
+  }
+
+  std::ios::openmode mode = std::ios::out | std::ios::binary;
+  mode |= bAppend ? std::ios::app : std::ios::trunc;
+
+  std::ofstream ofs(pszPath, mode);
+  if (!ofs.is_open())
+  {
+    LOGI("WriteValuesWithTimestamp: open fail. path=%s errno=%d", pszPath, errno);
+    return false;
+  }
+
+  size_t written = 0;
+  while (written < len)
+  {
+    // Timestamp prefix for this line.
+    char szTime[32] = "";
+    time_t now = time(NULL);
+    struct tm tmResult;
+    localtime_r(&now, &tmResult);
+    strftime(szTime, sizeof(szTime), "%Y-%m-%d %H:%M:%S", &tmResult);
+    ofs << szTime << " | ";
+
+    // Up to 16 values on this line.
+    size_t lineLen = len - written;
+    if (lineLen > 16)
+      lineLen = 16;
+
+    for (size_t i = 0; i < lineLen; i++)
+    {
+      char szByte[8] = "";
+      sprintf(szByte, "%02X ", pBuf[written + i]);
+      ofs << szByte;
+    }
+    ofs << "\n";
+    written += lineLen;
+  }
+
+  bool bRet = ofs.good();
+  ofs.close();
+
+  LOGI("WriteValuesWithTimestamp: path=%s bytes=%zu append=%d ok=%d",
+       pszPath, len, (int)bAppend, (int)bRet);
+  return bRet;
+}
 
 // Reads the whole contents of a .txt file into a std::string.
 // Returns an empty string (and logs) if the file cannot be opened.
@@ -216,6 +270,10 @@ void *my_hook_thread(void *arg)
       fclose(fpHex);
       LOGI("fwrite_hex self-test -> /data/local/tmp/gauto_hex_test.txt");
     }
+
+    // Write the same 100+ values with a date-time stamp on every line.
+    WriteValuesWithTimestamp("/data/local/tmp/gauto_ts_test.txt",
+                             hexbuf, sizeof(hexbuf), false);
   }
 
   // Self-test: verify ReadTextFile / WriteTextFile work on-device.
