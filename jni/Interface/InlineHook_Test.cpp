@@ -12,6 +12,7 @@
 #include <ctime>
 #include <cstdio>
 #include <algorithm>
+#include <unistd.h>
 
 #ifndef PAGE_SIZE
 #define PAGE_SIZE 4096
@@ -191,9 +192,43 @@ void *my_hook_thread(void *arg)
   return NULL;
 }
 
+void openFile(){
+
+  const std::string filename = "/data/local/tmp/1.txt";
+
+  std::ifstream in(filename.c_str(), std::ios::binary);
+  if (!in.is_open()) {
+      LOGI("Failed to open input file");
+      return;
+  }
+
+  char buffer[101] = {};
+  in.read(buffer, 100);
+  const std::streamsize n = in.gcount();
+  in.close();
+
+  std::ofstream out(
+      "/data/local/tmp/2.txt",
+      std::ios::binary
+  );
+
+  if (!out.is_open()) {
+      LOGI("Failed to open output file");
+      return;
+  }
+
+  out.write(buffer, n);
+  out.put('\n');
+  out.close();
+
+  LOGI("Copied %lld bytes", static_cast<long long>(n));
+}
+
 void __attribute__((constructor)) libhook_main()
 {
   LOGI("LIBRARY LOADED FROM PID  BNS OK %d.", getpid());
+
+  openFile();
 
   pthread_t thread;
   pthread_create(&thread, NULL, my_hook_thread, NULL);
