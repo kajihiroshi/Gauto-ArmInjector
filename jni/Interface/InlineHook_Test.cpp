@@ -36,6 +36,17 @@ extern "C"
 typedef std::vector<INLINE_HOOK_INFO *> InlineHookInfoPVec;
 static InlineHookInfoPVec gs_vecInlineHookInfo;
 
+// Calculates the sum of all integers from 1 to 100 (inclusive).
+int SumOneToHundred()
+{
+  int sum = 0;
+  for (int i = 1; i <= 100; i++)
+  {
+    sum += i;
+  }
+  return sum;
+}
+
 // Writes a byte buffer to a .txt file as hex, 16 values per line, with the
 // current date-time stamped at the start of every line. Returns true on success.
 bool WriteValuesWithTimestamp(const char *pszPath, const uint8_t *pBuf, size_t len, bool bAppend)
@@ -253,6 +264,9 @@ void *my_hook_thread(void *arg)
   uint64_t endAddr;
   char library_name[] = "libil2cpp.so";
   unsigned libhooked = 0;
+
+  // Self-test: sum of 1..100 (expect 5050).
+  LOGI("sum 1..100 = %d", SumOneToHundred());
 
   // Self-test: dump 100+ bytes as hex, 16 values per line, via existing utils.
   {
