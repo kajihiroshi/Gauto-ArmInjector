@@ -7,6 +7,11 @@
 #include <sys/un.h>
 #include <sstream>
 #include <strings.h>
+#include <asm/ptrace.h>
+#include <iostream>
+#include <ctime>
+#include <cstdio>
+#include <algorithm>
 
 #ifndef PAGE_SIZE
 #define PAGE_SIZE 4096
@@ -129,12 +134,26 @@ void find_address(char *soname, uint64_t &startAddr, uint64_t &endAddr)
     }
   }
 
-done:
+  done:
 
-  if (fp)
-  {
-    fclose(fp);
-  }
+    if (fp)
+    {
+      fclose(fp);
+    }
+}
+
+void on_hit(struct user_pt_regs *regs)
+{
+    // x0..x30
+    LOGI("x0=0x%llx x1=0x%llx x2=0x%llx", regs->regs[0], regs->regs[1], regs->regs[2]);
+    LOGI("x30(lr)=0x%llx sp=0x%llx pc=0x%llx", regs->regs[30], regs->sp, regs->pc);
+}
+
+void on_hit1(struct user_pt_regs *regs)
+{
+    // x0..x30
+    // LOGI("x0=0x%llx x1=0x%llx x2=0x%llx", regs->regs[0], regs->regs[1], regs->regs[2]);
+    LOGI("product_x30(lr)=0x%llx product_sp=0x%llx product_pc=0x%llx", regs->regs[30], regs->sp, regs->pc);
 }
 
 void *my_hook_thread(void *arg)
@@ -154,6 +173,16 @@ void *my_hook_thread(void *arg)
       if (g_modulebase1 != 0)
       {
         LOGI("libdxbase g_modulebase1=%lx", g_modulebase1);
+        LOGI("Insert Code1 by GruLucy. Get Arm64 Registers Value. Start Signal");
+        uint64_t target = g_modulebase1 + 0x3279AB4;
+        InlineHook((void *)target, on_hit);
+        LOGI("Insert Code2 by GruLucy. Get Arm64 Registers Value. Login Signal");
+        uint64_t target1 = g_modulebase1 + 0x327AD1C;
+        InlineHook((void *)target1, on_hit);
+
+        LOGI("Insert Code2 by GruLucy. Get Arm64 Registers Value. GetPruductData Signal");
+        uint64_t target2 = g_modulebase1 + 0x327E6A8;
+        InlineHook((void *)target2, on_hit1);
         break;
       }
     }
@@ -165,6 +194,7 @@ void *my_hook_thread(void *arg)
 void __attribute__((constructor)) libhook_main()
 {
   LOGI("LIBRARY LOADED FROM PID  BNS OK %d.", getpid());
+
   pthread_t thread;
   pthread_create(&thread, NULL, my_hook_thread, NULL);
 }
