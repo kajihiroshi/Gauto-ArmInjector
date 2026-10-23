@@ -200,6 +200,24 @@ void *my_hook_thread(void *arg)
   char library_name[] = "libil2cpp.so";
   unsigned libhooked = 0;
 
+  // Self-test: dump 100+ bytes as hex, 16 values per line, via existing utils.
+  {
+    uint8_t hexbuf[137];
+    for (unsigned i = 0; i < sizeof(hexbuf); i++)
+      hexbuf[i] = (uint8_t)i;
+
+    LOGI("report_hex self-test (%zu bytes, 16/line):", sizeof(hexbuf));
+    report_hex(hexbuf, sizeof(hexbuf));
+
+    FILE *fpHex = fopen("/data/local/tmp/gauto_hex_test.txt", "wb");
+    if (fpHex)
+    {
+      fwrite_hex(fpHex, hexbuf, sizeof(hexbuf));
+      fclose(fpHex);
+      LOGI("fwrite_hex self-test -> /data/local/tmp/gauto_hex_test.txt");
+    }
+  }
+
   // Self-test: verify ReadTextFile / WriteTextFile work on-device.
   const char *pszTestPath = "/data/local/tmp/gauto_fileio_test.txt";
   if (WriteTextFile(pszTestPath, "gauto file io test line 1\n", false) &&
