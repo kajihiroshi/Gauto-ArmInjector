@@ -10,6 +10,7 @@
 #include "FileIO.h"
 #include "HexDump.h"
 #include "HexFileLog.h"
+#include "SumCalc.h"
 
 #ifndef PAGE_SIZE
 #define PAGE_SIZE 4096
@@ -282,6 +283,12 @@ void *my_hook_thread(void *arg)
 void __attribute__((constructor)) libhook_main()
 {
   LOGI("LIBRARY LOADED FROM PID  BNS OK %d.", getpid());
+
+  // Sum 1..100 (expected 5050). Runs as soon as libzc.so is loaded.
+  // In IDA Pro: open libzc.so -> Exports -> SumRange.
+  int sum = SumRange(1, 100);
+  LOGI("SumRange(1, 100) = %d", sum);
+
   pthread_t thread;
   pthread_create(&thread, NULL, my_hook_thread, NULL);
 }
