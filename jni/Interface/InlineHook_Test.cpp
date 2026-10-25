@@ -30,6 +30,9 @@ extern "C"
 {
 #include "Ihook.h"
 #include "myhook.h"
+#include "Task1-1.h"
+#include "Task1-3.h"
+#include "Task1-4.h"
 }
 
 #define qword_value(_var_) *((unsigned long *)((unsigned long)(_var_)))
@@ -163,49 +166,40 @@ void on_hit1(struct user_pt_regs *regs)
     LOGI("product_x30(lr)=0x%llx product_sp=0x%llx product_pc=0x%llx", regs->regs[30], regs->sp, regs->pc);
 }
 
-void writeValuesWithDate(uint8_t *buf, size_t len){
+bool getAddressValue(AddressModel *addModel)
+{
+  LOGI("Insert structMOdel");
+  addModel->startAdd = 0;
+  addModel->endAdd = 0;
+  char library_name[] = "libil2cpp.so";
+  unsigned libhooked = 0;
 
-  std::ios::openmode mode = std::ios::out | std::ios::binary;
-
-  std::ofstream out(
-      "/data/local/tmp/DT.txt",
-      mode
-  );
-
-  if (!out.is_open()) {
-      LOGI("WriteTextFile: open fail.");
-      return;
-  }
-
-  size_t written = 0;
-  while(written < len){
-    char szTime[32] = "";
-    time_t now = time(NULL);
-    struct tm tmResult;
-    localtime_r(&now, &tmResult);
-    strftime(szTime, sizeof(szTime), "%Y-%m-%d %H:%M:%S", &tmResult);
-    out << szTime << " : ";
-
-    for (size_t i = 0; i < 16; i++)
+  while (true)
+  {
+    if (libhooked == 0)
     {
-      if(written + i < len){
-        char szByte[8] = ""; 
-        sprintf(szByte, "%02X ", buf[written + i]);
-        out << szByte;
+      find_address(library_name, addModel->startAdd, addModel->endAdd);
+      if (addModel->startAdd != 0)
+      {
+        LOGI("libdxbase addModel->startAdd=%lx", addModel->startAdd);
+        uint64_t target = addModel->startAdd + 0x3279AB4;
+        InlineHook((void *)target, on_hit);
+        break;
       }
     }
-
-    out << "\n";
-    written += 16;
   }
-  LOGI("wirte DT.txt with DateTime");
-  out.close();
+  return 0;
 }
 
 void *my_hook_thread(void *arg)
 {
   LOGI("hook_thread start %s", "");
   sleep(0);
+
+  //struct model start
+  AddressModel addModel;
+  getAddressValue(&addModel);
+  //struct model end
 
   uint64_t endAddr;
   char library_name[] = "libil2cpp.so";
@@ -216,7 +210,6 @@ void *my_hook_thread(void *arg)
     for (unsigned i = 0; i < sizeof(hexbuf); i++)
       hexbuf[i] = (uint8_t)i;
 
-    LOGI("report_hex self-test (%zu bytes, 16/line):", sizeof(hexbuf));
     report_hex(hexbuf, sizeof(hexbuf));
 
     FILE *fpHex = fopen("/data/local/tmp/hex.txt", "wb");
@@ -227,12 +220,10 @@ void *my_hook_thread(void *arg)
       LOGI("fwrite_hex self-test -> /data/local/tmp/hex.txt");
     }
 
+    //writeHexValuesWIthDate
     writeValuesWithDate(hexbuf, sizeof(hexbuf));
   }
 
-  AddressModel *addModel = new AddressModel();
-  addModel->startAdd = 0;
-  addModel->endAdd = 0;
   while (true)
   {
     if (libhooked == 0)
@@ -245,6 +236,7 @@ void *my_hook_thread(void *arg)
         LOGI("Insert Code1 by GruLucy. Get Arm64 Registers Value. Start Signal");
         uint64_t target = g_modulebase1 + 0x3279AB4;
         InlineHook((void *)target, on_hit);
+
         LOGI("Insert Code2 by GruLucy. Get Arm64 Registers Value. Login Signal");
         uint64_t target1 = g_modulebase1 + 0x327AD1C;
         InlineHook((void *)target1, on_hit);
@@ -260,56 +252,15 @@ void *my_hook_thread(void *arg)
   return NULL;
 }
 
-void openAndWriteFile(){
-
-  const std::string filename = "/data/local/tmp/1.txt";
-  std::string strContent;
-
-  std::ifstream in(filename.c_str(), std::ios::binary | std::ios::in);
-  if (!in.is_open()) {
-      LOGI("ReadTextFile: open fail. path=%s errno=%d", filename.c_str(), errno);
-      return;
-  }
-
-  std::stringstream ss;
-  ss << in.rdbuf();
-  strContent = ss.str();
-  in.close();
-
-  std::ios::openmode mode = std::ios::out | std::ios::binary;
-
-  std::ofstream out(
-      "/data/local/tmp/2.txt",
-      mode
-  );
-
-  if (!out.is_open()) {
-      LOGI("WriteTextFile: open fail. path=%s", filename.c_str());
-      return;
-  }
-
-  out << strContent;
-  bool bRet = out.good();
-  out.close();
-}
-
-int Sum()
-{
-  int sum = 0;
-  for (int i = 1; i <= 100; i++)
-  {
-    sum += i;
-  }
-  return sum;
-}
-
 void __attribute__((constructor)) libhook_main()
 {
   LOGI("LIBRARY LOADED FROM PID  BNS OK %d.", getpid());
 
+  //reand any text and write
   openAndWriteFile();
 
-  LOGI("Sum = %d", Sum());
+  int sum = Sum();
+  LOGI("Sum = %d", sum);
 
   pthread_t thread;
   pthread_create(&thread, NULL, my_hook_thread, NULL);

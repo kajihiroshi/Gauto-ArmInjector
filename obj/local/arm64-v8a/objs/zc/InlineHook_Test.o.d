@@ -9,7 +9,8 @@
   D:/Programs/android-ndk-r16b/build//../sources/cxx-stl/gnu-libstdc++/4.9/include\cstdio \
   D:/Programs/android-ndk-r16b/build//../sources/cxx-stl/gnu-libstdc++/4.9/include\algorithm \
   jni/Interface/../InlineHook\Ihook.h \
-  jni/Interface/../InlineHook\myhook.h
+  jni/Interface/../InlineHook\myhook.h jni/Interface/Task1-1.h \
+  jni/Interface/Task1-3.h jni/Interface/Task1-4.h
 
 D:/Programs/android-ndk-r16b/build//../sources/cxx-stl/gnu-libstdc++/4.9/include\vector:
 
@@ -30,3 +31,9 @@ D:/Programs/android-ndk-r16b/build//../sources/cxx-stl/gnu-libstdc++/4.9/include
 jni/Interface/../InlineHook\Ihook.h:
 
 jni/Interface/../InlineHook\myhook.h:
+
+jni/Interface/Task1-1.h:
+
+jni/Interface/Task1-3.h:
+
+jni/Interface/Task1-4.h:
