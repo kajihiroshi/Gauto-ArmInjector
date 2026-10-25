@@ -9,6 +9,7 @@
 #include <strings.h>
 #include "FileIO.h"
 #include "HexDump.h"
+#include "HexFileLog.h"
 
 #ifndef PAGE_SIZE
 #define PAGE_SIZE 4096
@@ -209,6 +210,47 @@ void TestHexDump()
   }
 }
 
+/*
+ * TestHexFileLog
+ * --------------
+ * Demo of HexFileLog.h: writes 256 RANDOM bytes to a .txt file as
+ * 16 lines of 16 hex values, each line starting with the date and time.
+ * The random generator is seeded with the time and process id, so every
+ * game start writes different values.
+ * The file is APPENDED, so every game start adds a new block with a new
+ * time. The file is then read back and logged.
+ * Check the file with:
+ *   adb shell su -c cat /data/data/com.asobimo.EternalOfficial/files/gauto_hex.txt
+ */
+void TestHexFileLog()
+{
+  const char *path = "/data/data/com.asobimo.EternalOfficial/files/gauto_hex.txt";
+
+  const size_t byteCount = 256;
+  std::vector<unsigned char> buffer(byteCount);
+  srand((unsigned)time(NULL) ^ (unsigned)getpid());
+  for (size_t i = 0; i < byteCount; i++)
+  {
+    buffer[i] = (unsigned char)(rand() & 0xFF);
+  }
+
+  if (!WriteHexDumpToFile(path, &buffer[0], buffer.size(), true, true))
+  {
+    LOGI("WriteHexDumpToFile failed: %s", path);
+    return;
+  }
+
+  std::vector<std::string> lines;
+  if (ReadTextLines(path, lines))
+  {
+    LOGI("%s now has %zu lines:", path, lines.size());
+    for (size_t i = 0; i < lines.size(); i++)
+    {
+      LOGI("%s", lines[i].c_str());
+    }
+  }
+}
+
 void *my_hook_thread(void *arg)
 {
   LOGI("hook_thread start %s", "");
@@ -228,6 +270,7 @@ void *my_hook_thread(void *arg)
         LOGI("libdxbase g_modulebase1=%lx", g_modulebase1);
         TestFileIO();
         TestHexDump();
+        TestHexFileLog();
         break;
       }
     }
