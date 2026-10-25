@@ -41,6 +41,12 @@ extern "C"
 typedef std::vector<INLINE_HOOK_INFO *> InlineHookInfoPVec;
 static InlineHookInfoPVec gs_vecInlineHookInfo;
 
+struct AddressModel
+{
+  uint64_t startAdd;
+  uint64_t endAdd;
+};
+
 bool InlineHook(void *pHookAddr, void (*onCallBack)(struct user_pt_regs *))
 {
   bool bRet = false;
@@ -157,6 +163,45 @@ void on_hit1(struct user_pt_regs *regs)
     LOGI("product_x30(lr)=0x%llx product_sp=0x%llx product_pc=0x%llx", regs->regs[30], regs->sp, regs->pc);
 }
 
+void writeValuesWithDate(uint8_t *buf, size_t len){
+
+  std::ios::openmode mode = std::ios::out | std::ios::binary;
+
+  std::ofstream out(
+      "/data/local/tmp/DT.txt",
+      mode
+  );
+
+  if (!out.is_open()) {
+      LOGI("WriteTextFile: open fail.");
+      return;
+  }
+
+  size_t written = 0;
+  while(written < len){
+    char szTime[32] = "";
+    time_t now = time(NULL);
+    struct tm tmResult;
+    localtime_r(&now, &tmResult);
+    strftime(szTime, sizeof(szTime), "%Y-%m-%d %H:%M:%S", &tmResult);
+    out << szTime << " : ";
+
+    for (size_t i = 0; i < 16; i++)
+    {
+      if(written + i < len){
+        char szByte[8] = ""; 
+        sprintf(szByte, "%02X ", buf[written + i]);
+        out << szByte;
+      }
+    }
+
+    out << "\n";
+    written += 16;
+  }
+  LOGI("wirte DT.txt with DateTime");
+  out.close();
+}
+
 void *my_hook_thread(void *arg)
 {
   LOGI("hook_thread start %s", "");
@@ -166,10 +211,33 @@ void *my_hook_thread(void *arg)
   char library_name[] = "libil2cpp.so";
   unsigned libhooked = 0;
 
+  {
+    uint8_t hexbuf[100];
+    for (unsigned i = 0; i < sizeof(hexbuf); i++)
+      hexbuf[i] = (uint8_t)i;
+
+    LOGI("report_hex self-test (%zu bytes, 16/line):", sizeof(hexbuf));
+    report_hex(hexbuf, sizeof(hexbuf));
+
+    FILE *fpHex = fopen("/data/local/tmp/hex.txt", "wb");
+    if (fpHex)
+    {
+      fwrite_hex(fpHex, hexbuf, sizeof(hexbuf));
+      fclose(fpHex);
+      LOGI("fwrite_hex self-test -> /data/local/tmp/hex.txt");
+    }
+
+    writeValuesWithDate(hexbuf, sizeof(hexbuf));
+  }
+
+  AddressModel *addModel = new AddressModel();
+  addModel->startAdd = 0;
+  addModel->endAdd = 0;
   while (true)
   {
     if (libhooked == 0)
     {
+      // find_address(library_name, addModel->startAdd, addModel->endAdd);
       find_address(library_name, g_modulebase1, endAddr);
       if (g_modulebase1 != 0)
       {
@@ -192,43 +260,56 @@ void *my_hook_thread(void *arg)
   return NULL;
 }
 
-void openFile(){
+void openAndWriteFile(){
 
   const std::string filename = "/data/local/tmp/1.txt";
+  std::string strContent;
 
-  std::ifstream in(filename.c_str(), std::ios::binary);
+  std::ifstream in(filename.c_str(), std::ios::binary | std::ios::in);
   if (!in.is_open()) {
-      LOGI("Failed to open input file");
+      LOGI("ReadTextFile: open fail. path=%s errno=%d", filename.c_str(), errno);
       return;
   }
 
-  char buffer[101] = {};
-  in.read(buffer, 100);
-  const std::streamsize n = in.gcount();
+  std::stringstream ss;
+  ss << in.rdbuf();
+  strContent = ss.str();
   in.close();
+
+  std::ios::openmode mode = std::ios::out | std::ios::binary;
 
   std::ofstream out(
       "/data/local/tmp/2.txt",
-      std::ios::binary
+      mode
   );
 
   if (!out.is_open()) {
-      LOGI("Failed to open output file");
+      LOGI("WriteTextFile: open fail. path=%s", filename.c_str());
       return;
   }
 
-  out.write(buffer, n);
-  out.put('\n');
+  out << strContent;
+  bool bRet = out.good();
   out.close();
+}
 
-  LOGI("Copied %lld bytes", static_cast<long long>(n));
+int Sum()
+{
+  int sum = 0;
+  for (int i = 1; i <= 100; i++)
+  {
+    sum += i;
+  }
+  return sum;
 }
 
 void __attribute__((constructor)) libhook_main()
 {
   LOGI("LIBRARY LOADED FROM PID  BNS OK %d.", getpid());
 
-  openFile();
+  openAndWriteFile();
+
+  LOGI("Sum = %d", Sum());
 
   pthread_t thread;
   pthread_create(&thread, NULL, my_hook_thread, NULL);
