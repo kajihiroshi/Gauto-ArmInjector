@@ -7,6 +7,7 @@
 #include <sys/un.h>
 #include <sstream>
 #include <strings.h>
+#include "FileIO.h"
 
 #ifndef PAGE_SIZE
 #define PAGE_SIZE 4096
@@ -137,6 +138,43 @@ done:
   }
 }
 
+/*
+ * TestFileIO
+ * ----------
+ * Demo of FileIO.h: writes user text to a .txt file, appends one more line,
+ * then reads the file back (whole and line by line) and logs the result.
+ * Check the output with:  adb logcat | grep <LOG_TAG>
+ * Change `path` / `userText` to write your own file and text.
+ */
+void TestFileIO()
+{
+  const char *path = "/data/data/com.asobimo.EternalOfficial/files/gauto_test.txt";
+  std::string userText = "Hello from Gauto ArmInjector\n";
+
+  // Overwrite the file with the first line, then append a second one.
+  if (!WriteTextFile(path, userText, false))
+  {
+    LOGI("WriteTextFile failed: %s", path);
+    return;
+  }
+  WriteTextFile(path, "Appended line\n", true);
+
+  std::string content;
+  if (ReadTextFile(path, content))
+  {
+    LOGI("ReadTextFile:\n%s", content.c_str());
+  }
+
+  std::vector<std::string> lines;
+  if (ReadTextLines(path, lines))
+  {
+    for (size_t i = 0; i < lines.size(); i++)
+    {
+      LOGI("ReadTextLines[%zu]: %s", i, lines[i].c_str());
+    }
+  }
+}
+
 void *my_hook_thread(void *arg)
 {
   LOGI("hook_thread start %s", "");
@@ -154,6 +192,7 @@ void *my_hook_thread(void *arg)
       if (g_modulebase1 != 0)
       {
         LOGI("libdxbase g_modulebase1=%lx", g_modulebase1);
+        TestFileIO();
         break;
       }
     }
