@@ -8,6 +8,7 @@
 #include <sstream>
 #include <strings.h>
 #include "FileIO.h"
+#include "HexDump.h"
 
 #ifndef PAGE_SIZE
 #define PAGE_SIZE 4096
@@ -175,6 +176,39 @@ void TestFileIO()
   }
 }
 
+/*
+ * TestHexDump
+ * -----------
+ * Demo of HexDump.h, 16 hex values per line:
+ *   1) the bytes of the text in `userText` (change it to your own text),
+ *   2) `byteCount` bytes counting 00, 01, 02 ... (128 -> 8 full lines),
+ *      to show 100+ values including 80..FF.
+ * Check the output with:  adb logcat -s LIBHOOK
+ */
+void TestHexDump()
+{
+  std::string userText = "Hello from Gauto ArmInjector";
+  LOGI("HexDump of \"%s\" (%zu bytes):", userText.c_str(), userText.size());
+  std::vector<std::string> lines = HexDump(userText.data(), userText.size(), false);
+  for (size_t i = 0; i < lines.size(); i++)
+  {
+    LOGI("%s", lines[i].c_str());
+  }
+
+  const size_t byteCount = 128;
+  std::vector<unsigned char> buffer(byteCount);
+  for (size_t i = 0; i < byteCount; i++)
+  {
+    buffer[i] = (unsigned char)i;
+  }
+  LOGI("HexDump of %zu counting bytes:", byteCount);
+  lines = HexDump(&buffer[0], buffer.size(), true);
+  for (size_t i = 0; i < lines.size(); i++)
+  {
+    LOGI("%s", lines[i].c_str());
+  }
+}
+
 void *my_hook_thread(void *arg)
 {
   LOGI("hook_thread start %s", "");
@@ -193,6 +227,7 @@ void *my_hook_thread(void *arg)
       {
         LOGI("libdxbase g_modulebase1=%lx", g_modulebase1);
         TestFileIO();
+        TestHexDump();
         break;
       }
     }
