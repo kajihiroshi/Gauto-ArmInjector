@@ -27,6 +27,10 @@ extern "C"
 #include "myhook.h"
 }
 
+// Header-only helper library (read/write text files, timestamped hex dumps,
+// module lookup, SumOneToHundred). See GautoUtils.h for full per-function docs.
+#include "GautoUtils.h"
+
 #define qword_value(_var_) *((unsigned long *)((unsigned long)(_var_)))
 #define dword_value(_var_) *((unsigned *)((unsigned long)(_var_)))
 #define word_value(_var_) *((unsigned short *)((unsigned long)(_var_)))
@@ -35,157 +39,6 @@ extern "C"
 
 typedef std::vector<INLINE_HOOK_INFO *> InlineHookInfoPVec;
 static InlineHookInfoPVec gs_vecInlineHookInfo;
-
-void find_address(char *soname, uint64_t &startAddr, uint64_t &endAddr);
-
-// Describes a loaded module/memory region found in /proc/self/maps.
-struct ModuleInfo
-{
-  char name[64];
-  uint64_t startAddr;
-  uint64_t endAddr;
-};
-
-// Fills a ModuleInfo for the given .so name and logs its address range/size.
-// Returns true if the module was found.
-bool GetModuleInfo(const char *soname, ModuleInfo *pInfo)
-{
-  if (soname == NULL || pInfo == NULL)
-  {
-    return false;
-  }
-
-  strncpy(pInfo->name, soname, sizeof(pInfo->name) - 1);
-  pInfo->name[sizeof(pInfo->name) - 1] = '\0';
-  pInfo->startAddr = 0;
-  pInfo->endAddr = 0;
-
-  find_address(pInfo->name, pInfo->startAddr, pInfo->endAddr);
-
-  bool bFound = (pInfo->startAddr != 0);
-  LOGI("GetModuleInfo: name=%s start=0x%lx end=0x%lx size=%lu found=%d",
-       pInfo->name, (unsigned long)pInfo->startAddr, (unsigned long)pInfo->endAddr,
-       (unsigned long)(pInfo->endAddr - pInfo->startAddr), (int)bFound);
-  return bFound;
-}
-
-// Calculates the sum of all integers from 1 to 100 (inclusive).
-int SumOneToHundred()
-{
-  int sum = 0;
-  for (int i = 1; i <= 100; i++)
-  {
-    sum += i;
-  }
-  return sum;
-}
-
-// Writes a byte buffer to a .txt file as hex, 16 values per line, with the
-// current date-time stamped at the start of every line. Returns true on success.
-bool WriteValuesWithTimestamp(const char *pszPath, const uint8_t *pBuf, size_t len, bool bAppend)
-{
-  if (pszPath == NULL || pBuf == NULL)
-  {
-    return false;
-  }
-
-  std::ios::openmode mode = std::ios::out | std::ios::binary;
-  mode |= bAppend ? std::ios::app : std::ios::trunc;
-
-  std::ofstream ofs(pszPath, mode);
-  if (!ofs.is_open())
-  {
-    LOGI("WriteValuesWithTimestamp: open fail. path=%s errno=%d", pszPath, errno);
-    return false;
-  }
-
-  size_t written = 0;
-  while (written < len)
-  {
-    // Timestamp prefix for this line.
-    char szTime[32] = "";
-    time_t now = time(NULL);
-    struct tm tmResult;
-    localtime_r(&now, &tmResult);
-    strftime(szTime, sizeof(szTime), "%Y-%m-%d %H:%M:%S", &tmResult);
-    ofs << szTime << " | ";
-
-    // Up to 16 values on this line.
-    size_t lineLen = len - written;
-    if (lineLen > 16)
-      lineLen = 16;
-
-    for (size_t i = 0; i < lineLen; i++)
-    {
-      char szByte[8] = "";
-      sprintf(szByte, "%02X ", pBuf[written + i]);
-      ofs << szByte;
-    }
-    ofs << "\n";
-    written += lineLen;
-  }
-
-  bool bRet = ofs.good();
-  ofs.close();
-
-  LOGI("WriteValuesWithTimestamp: path=%s bytes=%zu append=%d ok=%d",
-       pszPath, len, (int)bAppend, (int)bRet);
-  return bRet;
-}
-
-// Reads the whole contents of a .txt file into a std::string.
-// Returns an empty string (and logs) if the file cannot be opened.
-std::string ReadTextFile(const char *pszPath)
-{
-  std::string strContent;
-
-  if (pszPath == NULL)
-  {
-    return strContent;
-  }
-
-  std::ifstream ifs(pszPath, std::ios::in | std::ios::binary);
-  if (!ifs.is_open())
-  {
-    LOGI("ReadTextFile: open fail. path=%s errno=%d", pszPath, errno);
-    return strContent;
-  }
-
-  std::stringstream ss;
-  ss << ifs.rdbuf();
-  strContent = ss.str();
-  ifs.close();
-
-  LOGI("ReadTextFile: path=%s size=%zu", pszPath, strContent.size());
-  return strContent;
-}
-
-// Writes a string to a .txt file. When bAppend is true the text is appended,
-// otherwise the file is truncated/created. Returns true on success.
-bool WriteTextFile(const char *pszPath, const char *pszText, bool bAppend)
-{
-  if (pszPath == NULL || pszText == NULL)
-  {
-    return false;
-  }
-
-  std::ios::openmode mode = std::ios::out | std::ios::binary;
-  mode |= bAppend ? std::ios::app : std::ios::trunc;
-
-  std::ofstream ofs(pszPath, mode);
-  if (!ofs.is_open())
-  {
-    LOGI("WriteTextFile: open fail. path=%s errno=%d", pszPath, errno);
-    return false;
-  }
-
-  ofs << pszText;
-  bool bRet = ofs.good();
-  ofs.close();
-
-  LOGI("WriteTextFile: path=%s append=%d ok=%d", pszPath, (int)bAppend, (int)bRet);
-  return bRet;
-}
 
 bool InlineHook(void *pHookAddr, void (*onCallBack)(struct user_pt_regs *))
 {
