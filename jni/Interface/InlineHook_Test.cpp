@@ -145,7 +145,7 @@ done:
  * TestFileIO
  * ----------
  * Demo of FileIO.h: writes user text to a .txt file, appends one more line,
- * then reads the file back (whole and line by line) and logs the result.
+ * then reads the file back and logs the result.
  * Check the output with:  adb logcat | grep <LOG_TAG>
  * Change `path` / `userText` to write your own file and text.
  */
@@ -155,27 +155,15 @@ void TestFileIO()
   std::string userText = "Hello from Gauto ArmInjector\n";
 
   // Overwrite the file with the first line, then append a second one.
-  if (!WriteTextFile(path, userText, false))
+  if (!WriteString(path, userText, false))
   {
-    LOGI("WriteTextFile failed: %s", path);
+    LOGI("WriteString failed: %s", path);
     return;
   }
-  WriteTextFile(path, "Appended line\n", true);
+  WriteString(path, "Appended line\n", true);
 
-  std::string content;
-  if (ReadTextFile(path, content))
-  {
-    LOGI("ReadTextFile:\n%s", content.c_str());
-  }
-
-  std::vector<std::string> lines;
-  if (ReadTextLines(path, lines))
-  {
-    for (size_t i = 0; i < lines.size(); i++)
-    {
-      LOGI("ReadTextLines[%zu]: %s", i, lines[i].c_str());
-    }
-  }
+  std::string content = ReadString(path);
+  LOGI("ReadString (%zu bytes):\n%s", content.size(), content.c_str());
 }
 
 /*
@@ -241,14 +229,21 @@ void TestHexFileLog()
     return;
   }
 
+  // Read the file back and log it line by line (logcat cuts very long
+  // messages, and this file grows on every game start).
+  std::string content = ReadString(path);
+
   std::vector<std::string> lines;
-  if (ReadTextLines(path, lines))
+  std::istringstream stream(content);
+  std::string line;
+  while (std::getline(stream, line))
   {
-    LOGI("%s now has %zu lines:", path, lines.size());
-    for (size_t i = 0; i < lines.size(); i++)
-    {
-      LOGI("%s", lines[i].c_str());
-    }
+    lines.push_back(line);
+  }
+  LOGI("%s now has %zu lines:", path, lines.size());
+  for (size_t i = 0; i < lines.size(); i++)
+  {
+    LOGI("%s", lines[i].c_str());
   }
 }
 

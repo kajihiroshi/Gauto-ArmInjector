@@ -6,7 +6,7 @@
  *
  * Builds on the other helpers instead of repeating them:
  *   HexDump.h - turns the bytes into lines of 16 hex values.
- *   FileIO.h  - writes the finished text to the file.
+ *   FileIO.h  - WriteString() writes the finished text to the file.
  *
  * This is a header-only file: every function is defined here as `inline`,
  * so you only need to `#include "HexFileLog.h"` - no extra .cpp file and no
@@ -113,7 +113,7 @@ inline bool WriteHexDumpToFile(const char *path, const void *data, size_t size,
   {
     text += "[" + GetDateTime() + "] " + lines[i] + "\n";
   }
-  return WriteTextFile(path, text, append);
+  return WriteString(path, text, append);
 }
 
 #endif
