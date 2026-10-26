@@ -353,7 +353,7 @@ inline bool GetModuleInfo(const char *soname, ModuleInfo *pInfo)
     /* Each maps line looks like:
      *   7f1234a000-7f1234b000 r-xp 00000000 fd:00 1234  /path/libc.so
      */
-    if (strstr(buffer, soname))
+    if (strstr(buffer, soname)) // buffer: total string, soname:libil2cpp.so, Find line
     {
       uint64_t lineStart = strtoull(buffer, NULL, 16);
       char *dash = strchr(buffer, '-');
@@ -365,7 +365,8 @@ inline bool GetModuleInfo(const char *soname, ModuleInfo *pInfo)
         pInfo->endAddr = lineEnd;       /* keep the highest end */
     }
   }
-
+// 712156c72000-71215e7fd000
+// startAddr     EndAddr 
   fclose(fp);
 
   bool bFound = (pInfo->startAddr != 0);
