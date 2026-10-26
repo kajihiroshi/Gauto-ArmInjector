@@ -18,93 +18,42 @@
 #include <fstream>
 #include <sstream>
 #include <string>
-#include <vector>
 
 /*
- * ReadTextFile
- * ------------
- * Reads the WHOLE content of a text file into one string.
+ * ReadString
+ * ----------
+ * Reads the WHOLE content of a text file and returns it as one string.
  *
  * Parameters:
- *   path       - full path of the file to read, e.g. "/data/data/pkg/files/a.txt".
- *   outContent - [out] receives the file content (including line breaks).
- *                It is cleared first, so old data is never mixed in.
+ *   path - full path of the file to read, e.g. "/data/data/pkg/files/a.txt".
  *
  * Returns:
- *   true  - the file was opened and read.
- *   false - the file does not exist or cannot be opened (no permission).
- *           outContent is left empty.
+ *   The file content (including line breaks).
+ *   Returns "" (empty string) when the file does not exist or cannot be
+ *   opened (no permission). Note: an empty file also returns "".
  *
  * Example:
- *   std::string text;
- *   if (ReadTextFile("/data/data/pkg/files/a.txt", text))
+ *   std::string text = ReadString("/data/data/pkg/files/a.txt");
+ *   if (!text.empty())
  *     LOGI("file says: %s", text.c_str());
  */
-inline bool ReadTextFile(const char *path, std::string &outContent)
+inline std::string ReadString(const char *path)
 {
-  outContent.clear();
-
   std::ifstream file(path);
   if (!file.is_open())
   {
-    return false;
+    return "";
   }
 
   // Copy the whole file buffer into a string stream in one go.
   std::stringstream buffer;
   buffer << file.rdbuf();
-  outContent = buffer.str();
-  return true;
+  return buffer.str();
 }
 
 /*
- * ReadTextLines
- * -------------
- * Reads a text file LINE BY LINE; each line becomes one item in a vector.
- * Useful when every line is a separate value (a list of names, settings...).
- *
- * Parameters:
- *   path     - full path of the file to read.
- *   outLines - [out] receives one string per line. Line break characters
- *              ('\n' and a trailing '\r' from Windows files) are removed.
- *              It is cleared first.
- *
- * Returns:
- *   true  - the file was opened and read (an empty file gives 0 lines).
- *   false - the file does not exist or cannot be opened. outLines is empty.
- *
- * Example:
- *   std::vector<std::string> lines;
- *   if (ReadTextLines("/data/data/pkg/files/a.txt", lines))
- *     for (size_t i = 0; i < lines.size(); i++)
- *       LOGI("line %zu: %s", i, lines[i].c_str());
- */
-inline bool ReadTextLines(const char *path, std::vector<std::string> &outLines)
-{
-  outLines.clear();
-
-  std::ifstream file(path);
-  if (!file.is_open())
-  {
-    return false;
-  }
-
-  std::string line;
-  while (std::getline(file, line))
-  {
-    // Files edited on Windows end lines with "\r\n"; drop the '\r'.
-    if (!line.empty() && line[line.size() - 1] == '\r')
-    {
-      line.erase(line.size() - 1);
-    }
-    outLines.push_back(line);
-  }
-  return true;
-}
-
-/*
- * WriteTextFile
- * -------------
+ * WriteString
+ * -----------
  * Writes a string to a text file. The string is whatever the caller types /
  * passes in; it is written exactly as given (add "\n" yourself if you want a
  * line break).
@@ -122,10 +71,10 @@ inline bool ReadTextLines(const char *path, std::vector<std::string> &outLines)
  *           or the write failed (e.g. disk full).
  *
  * Example:
- *   WriteTextFile("/data/data/pkg/files/a.txt", "first line\n", false);  // new file
- *   WriteTextFile("/data/data/pkg/files/a.txt", "second line\n", true);  // add to it
+ *   WriteString("/data/data/pkg/files/a.txt", "first line\n", false);  // new file
+ *   WriteString("/data/data/pkg/files/a.txt", "second line\n", true);  // add to it
  */
-inline bool WriteTextFile(const char *path, const std::string &text, bool append)
+inline bool WriteString(const char *path, const std::string &text, bool append)
 {
   std::ios_base::openmode mode = std::ios_base::out;
   mode |= append ? std::ios_base::app : std::ios_base::trunc;
