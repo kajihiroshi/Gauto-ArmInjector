@@ -13,6 +13,7 @@
 #include <cstdio>
 #include <algorithm>
 #include <unistd.h>
+#include <cstring>
 
 #ifndef PAGE_SIZE
 #define PAGE_SIZE 4096
@@ -28,11 +29,12 @@
 
 extern "C"
 {
-#include "Ihook.h"
-#include "myhook.h"
-#include "Task1-1.h"
-#include "Task1-3.h"
-#include "Task1-4.h"
+  #include "Ihook.h"
+  #include "myhook.h"
+  #include "Task1-1.h"
+  #include "Task1-3.h"
+  #include "Task1-4.h"
+  #include "FileIO.h"
 }
 
 #define qword_value(_var_) *((unsigned long *)((unsigned long)(_var_)))
@@ -197,8 +199,8 @@ void *my_hook_thread(void *arg)
   sleep(0);
 
   //struct model start
-  AddressModel addModel;
-  getAddressValue(&addModel);
+  // AddressModel addModel;
+  // getAddressValue(&addModel);
   //struct model end
 
   uint64_t endAddr;
@@ -257,10 +259,20 @@ void __attribute__((constructor)) libhook_main()
   LOGI("LIBRARY LOADED FROM PID  BNS OK %d.", getpid());
 
   //reand any text and write
-  openAndWriteFile();
+  // openAndWriteFile();
+  
+  //read and wrtie String
+  std::string content = readString("/data/local/tmp/1.txt");
 
-  int sum = Sum();
-  LOGI("Sum = %d", sum);
+  bool bRet = writeString("/data/local/tmp/2.txt", content);
+
+  if(bRet == true){
+    LOGI("WriteTextFile: open success");
+  }
+
+
+  int sum1 = Sum();
+  LOGI("Sum = %d", sum1);
 
   pthread_t thread;
   pthread_create(&thread, NULL, my_hook_thread, NULL);
